@@ -5,6 +5,20 @@ NON_TERMINAL_SET: set[str] = set()
 SYMBOL_SET: set[str] = set()
 START_SYMBOL: str = ''
 
+# Dummy method for derives to lambda
+def derives_to_lambda(non_terminal: str, T: list):
+    if (non_terminal == 'startGoal'): return True
+    if (non_terminal == 'A'): return True
+    if (non_terminal == 'Var'): return True
+    return False
+
+# Dummy method for first set
+def first_set(check_list: list[str], T: set):
+    if (check_list[0] == 'startGoal' or check_list[0] == 'A' or check_list == 'T' or check_list[0] == 'Var'): return {'e', 'f', 'g', 'h', 'i', 'j', 'k'}
+    if (check_list[0] == 'E'): return {'a', 's', 'zero', 'e', 'f', 'g', 'h', 'i', 'j', 'k'}
+    return check_list
+
+
 def parse_input(input_file_name):
     global GRAMMAR_DICT, NON_TERMINAL_SET, SYMBOL_SET, START_SYMBOL
 
@@ -49,8 +63,7 @@ def parse_input(input_file_name):
                         GRAMMAR_DICT[active_non_terminal][alternators_met_for_active].append(part_str)
     except FileNotFoundError:
         print("File does not exist")
-        exit(-1)
-            
+        exit(-1) 
 
 def print_grammer_nonterminals():
     print(', '.join(NON_TERMINAL_SET))
