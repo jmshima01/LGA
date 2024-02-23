@@ -42,6 +42,28 @@ def first_set_full(check_list: list[str], T: set):
 def first_set(check_list: list[str]):
     return first_set_full(check_list,set())
 
+def follow_set(A: str, T:set):
+    if A in T:
+        return set(), T
+    T.add(A)
+    F = set()
+    for p in GRAMMAR_DICT:
+        for a in len(p):
+            if p[a] == A:
+                if a < len(p) - 1:
+                    G,I = first_set(p[a+1:])
+                    F.union(G)
+                derives = True
+                for b in p[a+1:]:
+                    print('or')
+                    if not derives_to_lambda(b):
+                        derives = False
+                        break
+                if a == len(p) - 1 or (derives and p != GRAMMAR_DICT[START_SYMBOL]):
+                    G,I = follow_set(GRAMMAR_DICT.index(p))
+                    F.union(G)
+        print('here')
+    return F,T
 
 
 def parse_input(input_file_name):
@@ -124,7 +146,11 @@ def print_first_sets():
     for non_terminal in NON_TERMINAL_SET:
         print(f'First Set of {non_terminal}: {first_set([non_terminal])}')
     print()
-    
+
+def print_follow_sets():
+    for non_terminal in NON_TERMINAL_SET:
+        print(f'Follow Set of {non_terminal}: {follow_set(non_terminal)}')
+    print()
 
 def main():
     # Handle command line arguments
@@ -145,6 +171,8 @@ def main():
 
     # Print first sets 
     print_first_sets()
+
+    print_follow_sets()
 
 
 if __name__ == '__main__':
