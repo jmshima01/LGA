@@ -13,10 +13,10 @@ def derives_to_lambda(non_terminal: str, T: list=[]):
             continue
         if production[0] == "lambda":
             return True
-        if not all([val in NON_TERMINAL_SET for val in production]):
+        if not all(map(lambda val: val in NON_TERMINAL_SET, production)):
             continue
-        deriveToLambda = lambda non_term: derives_to_lambda(non_terminal, T+[production])
-        if(all([deriveToLambda(non_term)] for non_term in production)):
+        deriveToLambda = lambda non_term: derives_to_lambda(non_term, T+[production])
+        if(all(map(deriveToLambda, production))):
             return True
     return False
 
