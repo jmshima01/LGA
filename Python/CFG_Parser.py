@@ -23,22 +23,26 @@ def derives_to_lambda(non_terminal: str, T: list=[]):
 # Method for first set
 def first_set_full(check_list: list[str], T: set):
     front,rest = check_list[0],check_list[1:]
-    if front not in NON_TERMINAL_SET:
+    if front in SYMBOL_SET and front not in NON_TERMINAL_SET:
         return set([front]), T
     F = set()
     if(front not in T):
         T.add(front)
         for production in GRAMMAR_DICT[front]:
+            if production[0] == "lambda":
+                continue
             G, I = first_set_full(production, set([v for v in T]))
             F = F.union(G)
     if derives_to_lambda(front) and len(rest):
-        G, I = first_set_full(production, set([v for v in T]))
+        G, I = first_set_full(rest, set([v for v in T]))
         F = F.union(G)
     return F,T
 
 # Overload for first sets 
 def first_set(check_list: list[str]):
     return first_set_full(check_list,set())
+
+
 
 def parse_input(input_file_name):
     global GRAMMAR_DICT, NON_TERMINAL_SET, SYMBOL_SET, START_SYMBOL
