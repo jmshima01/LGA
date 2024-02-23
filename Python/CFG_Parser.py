@@ -25,46 +25,51 @@ def first_set_full(check_list: list[str], T: set):
     front,rest = check_list[0],check_list[1:]
     if front in SYMBOL_SET and front not in NON_TERMINAL_SET:
         return set([front]), T
-    F = set()
+    first = set()
     if(front not in T):
         T.add(front)
         for production in GRAMMAR_DICT[front]:
             if production[0] == "lambda":
                 continue
             G, I = first_set_full(production, set([v for v in T]))
-            F = F.union(G)
+            first = first.union(G)
     if derives_to_lambda(front) and len(rest):
         G, I = first_set_full(rest, set([v for v in T]))
-        F = F.union(G)
-    return F,T
+        first = first.union(G)
+    return first,T
 
 # Overload for first sets 
 def first_set(check_list: list[str]):
     return first_set_full(check_list,set())
 
-def follow_set(A: str, T:set):
-    if A in T:
+# Method for follow sets
+def follow_set_full(non_terminal: str, T:set):
+    if non_terminal in T:
         return set(), T
-    T.add(A)
-    F = set()
-    for p in GRAMMAR_DICT:
-        for a in len(p):
-            if p[a] == A:
-                if a < len(p) - 1:
-                    G,I = first_set(p[a+1:])
-                    F.union(G)
-                derives = True
-                for b in p[a+1:]:
-                    print('or')
-                    if not derives_to_lambda(b):
-                        derives = False
-                        break
-                if a == len(p) - 1 or (derives and p != GRAMMAR_DICT[START_SYMBOL]):
-                    G,I = follow_set(GRAMMAR_DICT.index(p))
-                    F.union(G)
-        print('here')
-    return F,T
+    T.add(non_terminal)
+    follow = set()
+    # lots of unpacking, sucks
+    for non_term in NON_TERMINAL_SET:
+        for production in GRAMMAR_DICT[non_term]:
+            for index, sym in enumerate(production):
+                if sym == non_terminal:
+                    phi = production[index+1:]
+                    if len(phi):
+                        G,I = first_set(phi)
+                        follow = follow.union(G)
+                    
+                    # Simple boolean functions
+                    all_non_term = lambda : all(map(lambda val: val in NON_TERMINAL_SET, phi))
+                    all_derive_lambda = lambda : all(map(lambda val: derives_to_lambda(val), phi))
 
+                    if not len(phi) or (all_non_term() and all_derive_lambda()):
+                        G,I = follow_set_full(non_term, set([v for v in T]))
+                        follow = follow.union(G)
+    return follow,T
+
+# Overload for follow sets
+def follow_set(non_terminal: str):
+    return follow_set_full(non_terminal, set())
 
 def parse_input(input_file_name):
     global GRAMMAR_DICT, NON_TERMINAL_SET, SYMBOL_SET, START_SYMBOL
