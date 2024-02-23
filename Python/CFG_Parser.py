@@ -5,19 +5,40 @@ NON_TERMINAL_SET: set[str] = set()
 SYMBOL_SET: set[str] = set()
 START_SYMBOL: str = ''
 
-# Dummy method for derives to lambda
-def derives_to_lambda(non_terminal: str, T: list):
-    if (non_terminal == 'startGoal'): return True
-    if (non_terminal == 'A'): return True
-    if (non_terminal == 'Var'): return True
+
+# Method for derives to lambda
+def derives_to_lambda(non_terminal: str, T: list=[]):
+    for production in GRAMMAR_DICT[non_terminal]:
+        if production in T:
+            continue
+        if production[0] == "lambda":
+            return True
+        if not all([val in NON_TERMINAL_SET for val in production]):
+            continue
+        deriveToLambda = lambda non_term: derives_to_lambda(non_terminal, T+[production])
+        if(all([deriveToLambda(non_term)] for non_term in production)):
+            return True
     return False
 
-# Dummy method for first set
-def first_set(check_list: list[str], T: set):
-    if (check_list[0] == 'startGoal' or check_list[0] == 'A' or check_list == 'T' or check_list[0] == 'Var'): return {'e', 'f', 'g', 'h', 'i', 'j', 'k'}
-    if (check_list[0] == 'E'): return {'a', 's', 'zero', 'e', 'f', 'g', 'h', 'i', 'j', 'k'}
-    return check_list
+# Method for first set
+def first_set_full(check_list: list[str], T: set):
+    front,rest = check_list[0],check_list[1:]
+    if front not in NON_TERMINAL_SET:
+        return set([front]), T
+    F = set()
+    if(front not in T):
+        T.add(front)
+        for production in GRAMMAR_DICT[front]:
+            G, I = first_set_full(production, set([v for v in T]))
+            F = F.union(G)
+    if derives_to_lambda(front) and len(rest):
+        G, I = first_set_full(production, set([v for v in T]))
+        F = F.union(G)
+    return F,T
 
+# Overload for first sets 
+def first_set(check_list: list[str]):
+    return first_set_full(check_list,set())
 
 def parse_input(input_file_name):
     global GRAMMAR_DICT, NON_TERMINAL_SET, SYMBOL_SET, START_SYMBOL
@@ -88,7 +109,18 @@ def print_grammar_full():
     print_grammar_terminals()
     print('\nGrammar Rules')
     print_grammar_rules_verbose()
-    print(f'\nGrammar Start Symbol or Goal: {START_SYMBOL}')
+    print(f'\nGrammar Start Symbol or Goal: {START_SYMBOL}\n')
+
+def print_derives_to_lambda():
+    for non_terminal in NON_TERMINAL_SET:
+        print(f'{non_terminal} derives to lambda: {derives_to_lambda(non_terminal)}')
+    print()
+
+def print_first_sets():
+    for non_terminal in NON_TERMINAL_SET:
+        print(f'First Set of {non_terminal}: {first_set([non_terminal])}')
+    print()
+    
 
 def main():
     # Handle command line arguments
@@ -103,6 +135,12 @@ def main():
 
     # Print out the required stuff
     print_grammar_full()
+
+    # Print out derivations to lambda
+    print_derives_to_lambda()
+
+    # Print first sets 
+    print_first_sets()
 
 
 if __name__ == '__main__':
