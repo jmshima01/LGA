@@ -1,0 +1,42 @@
+Grammar Non-Terminals
+Rule, LHS, Rules, RHS, S, Symbol
+Grammar Symbols
+Rule, dollar, LHS, term, Rules, RHS, lambdasymbol, alt, S, Symbol, arrow, $, nonterm
+
+Grammar Rules
+(1)   S -> nonterm arrow RHS dollar Rules $
+(2)   Rules -> Rules Rule
+(3)   Rules -> Rule
+(4)   Rules -> lambda
+(5)   Rule -> LHS RHS
+(6)   LHS -> nonterm arrow
+(7)   LHS -> alt
+(8)   RHS -> RHS Symbol
+(9)   RHS -> Symbol
+(10)   RHS -> lambdasymbol
+(11)   Symbol -> nonterm
+(12)   Symbol -> term
+
+Grammar Start Symbol or Goal: S
+
+Rule derives to lambda: False
+LHS derives to lambda: False
+Rules derives to lambda: True
+RHS derives to lambda: False
+S derives to lambda: False
+Symbol derives to lambda: False
+
+First Set of Rule: ({'nonterm', 'alt'}, {'Rule'})
+First Set of LHS: ({'nonterm', 'alt'}, {'LHS'})
+First Set of Rules: ({'nonterm', 'alt'}, {'Rules'})
+First Set of RHS: ({'nonterm', 'lambdasymbol', 'term'}, {'RHS'})
+First Set of S: ({'nonterm'}, {'S'})
+First Set of Symbol: ({'nonterm', 'term'}, {'Symbol'})
+
+Follow Set of Rule: ({'$', 'nonterm', 'alt'}, {'Rule'})
+Follow Set of LHS: ({'nonterm', 'lambdasymbol', 'term'}, {'LHS'})
+Follow Set of Rules: ({'$', 'nonterm', 'alt'}, {'Rules'})
+Follow Set of RHS: ({'dollar', '$', 'term', 'nonterm', 'alt'}, {'RHS'})
+Follow Set of S: (set(), {'S'})
+Follow Set of Symbol: ({'dollar', 'term', 'alt', '$', 'nonterm'}, {'Symbol'})
+
