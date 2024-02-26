@@ -6,6 +6,7 @@
 #include <set>
 #include <fstream>
 #include <string>
+#include <map>
 
 using namespace std;
 
@@ -14,7 +15,10 @@ class grammer {
         void read_file(string file_name);
         void print_cfg();
         set<string> followSet(string A, set<string>* T);
+        bool derivesToLambda(string nonTerminal); 
+        set<string> firstSet(string nonTerminal, set<string> T);
     private:
+        typedef std::vector<std::string> symbolList;
         struct rule {
             string nonT;
             vector<string> result;
@@ -23,6 +27,9 @@ class grammer {
         set<string> notTs; // Contains all the non terminals
         set<string> symbols; // Contains all the terminals and non terminals
         string start; // The starting terminal
+        map<string, bool> lambdaLookup;
+        void derivesToLambda(string nonTerminal, set<int>* T);
+        const std::string lambda = "lambda";
 };
 
 void grammer::read_file(string file_name) {
@@ -110,7 +117,69 @@ set<string> grammer::followSet(string A, set<string>* T) {
     T->insert(A);
     set<string> F;
     for (auto p:rules) {
+        for (size_t i = 0; i < p.result.size(); i++) {
+            if (A == p.result[i]) {
+                if (i != p.result.size() - 1) {
+                    auto G = firstSet();
+                }
+            }
+        }
         
     }
+}
+
+bool grammer::derivesToLambda(string nonTerminal) {
+    if(!lambdaLookup.count(nonTerminal)) {
+        derivesToLambda(nonTerminal, new set<int>());
+    }
+    return lambdaLookup.at(nonTerminal);
+}
+
+//helper, does recursion
+void grammer::derivesToLambda(string nonTerminal, set<int>* T) {
+    for(int p = 0; p < rules.size(); p++) {// p represents the index of a rule
+        rule r = rules[p];
+        if(r.nonT != nonTerminal) { //if nonterminals link to rule indexes, change bounds of p, remove condition
+            continue;
+        }
+        if(T->count(p)) {
+            continue;
+        }
+        if(lambda == r.result[0]) {
+            lambdaLookup.emplace(nonTerminal,true);
+            return;
+        }
+
+        //probably a better way to do this
+        symbolList recurse = symbolList();
+        for(string sym : r.result) {
+            if(!notTs.count(sym)){
+                break;
+            }
+            recurse.push_back(sym);
+        }
+        if(recurse.size() != r.result.size()) {
+            continue;
+        }
+
+        bool allDerive = true;
+        for(string sym : recurse) {
+            if(!lambdaLookup.count(sym)) {
+                T->insert(p);
+                derivesToLambda(sym, T);
+                T->erase(p);
+            }
+            if (!(allDerive &= lambdaLookup.at(sym))) {
+                break;
+            }
+        }
+        if(allDerive) {
+            lambdaLookup.emplace(nonTerminal,true);
+            return;
+        }
+        
+    }
+    lambdaLookup.emplace(nonTerminal,false);
+    return;
 }
 #endif
