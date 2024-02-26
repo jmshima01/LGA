@@ -16,7 +16,7 @@ class grammer {
         void print_cfg();
         set<string> followSet(string A, set<string>* T);
         bool derivesToLambda(string nonTerminal); 
-        set<string> firstSet(string nonTerminal, set<string> T);
+        set<string> firstSet(vector<string> nonTerminal, set<string>* T);
     private:
         typedef std::vector<std::string> symbolList;
         struct rule {
@@ -30,6 +30,9 @@ class grammer {
         map<string, bool> lambdaLookup;
         void derivesToLambda(string nonTerminal, set<int>* T);
         const std::string lambda = "lambda";
+        vector<string> after_vec(size_t idx, vector<string> vec);
+        set<string> union_set(set<string> first, set<string> second);
+        bool check_lambda(vector<string> vec);
 };
 
 void grammer::read_file(string file_name) {
@@ -110,6 +113,28 @@ void grammer::print_cfg() {
     cout << "Grammar Start Symbol or Goal: " << start << endl;
 }
 
+set<string> grammer::firstSet(vector<string> nonTerminal, set<string>* T) {
+    set<string> F;
+    if (notTs.count(nonTerminal[0]) == 0) {
+        F.insert(nonTerminal[0]);
+        return F;
+    }
+    if (T->count(nonTerminal[0]) == 0) {
+        T->insert(nonTerminal[0]);
+        for (auto p:rules) {
+            if (nonTerminal[0] == p.nonT) {
+                auto G = firstSet(p.result, T);
+                F = union_set(F, G);
+            }
+        }
+    }
+    if (derivesToLambda(nonTerminal[0]) && nonTerminal.size() > 1) {
+        auto G = firstSet(after_vec(1, nonTerminal), T);
+        F = union_set(F, G);
+    }
+    return F;
+}
+
 set<string> grammer::followSet(string A, set<string>* T) {
     if (T->count(A) != 0) {
         return set<string>{};
@@ -120,12 +145,17 @@ set<string> grammer::followSet(string A, set<string>* T) {
         for (size_t i = 0; i < p.result.size(); i++) {
             if (A == p.result[i]) {
                 if (i != p.result.size() - 1) {
-                    auto G = firstSet();
+                    auto G = firstSet(after_vec(i + 1, p.result), new set<string>());
+                    F = union_set(F, G);
+                }
+                if (i == p.result.size() - 1 || check_lambda(after_vec(i, p.result))) {
+                    auto G = followSet(p.result[i], T);
+                    F = union_set(F, G);
                 }
             }
         }
-        
     }
+    return F;
 }
 
 bool grammer::derivesToLambda(string nonTerminal) {
@@ -181,5 +211,36 @@ void grammer::derivesToLambda(string nonTerminal, set<int>* T) {
     }
     lambdaLookup.emplace(nonTerminal,false);
     return;
+}
+
+vector<string> grammer::after_vec(size_t idx, vector<string> vec) {
+    vector<string> new_vec;
+    for (size_t i = idx; i < vec.size(); i++) {
+        new_vec.push_back(vec[i]);
+    }
+    return new_vec;
+}
+
+set<string> grammer::union_set(set<string> first, set<string> second) {
+    for (auto a:second) {
+        first.insert(a);
+    }
+    return first;
+}
+
+bool grammer::check_lambda(vector<string> vec) {
+    bool valid = true;
+    for (size_t i = 0; i < vec.size(); i++) {
+        if (notTs.count(vec[i]) == 0) {
+            valid = false;
+            break;
+        } else {
+            if (!derivesToLambda(vec[i])) {
+                valid = false;
+                break;
+            }
+        }
+    }
+    return valid;
 }
 #endif
