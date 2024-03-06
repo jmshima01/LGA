@@ -5,6 +5,7 @@ NON_TERMINAL_SET: set[str] = set()
 SYMBOL_SET: set[str] = set()
 START_SYMBOL: str = ''
 
+LL1_PARSE_TABLE: dict[str, dict[str, tuple[str,int]]] = {}
 
 # Method for derives to lambda
 def derives_to_lambda(non_terminal: str, T: list=[]):
@@ -70,6 +71,23 @@ def follow_set_full(non_terminal: str, T:set):
 # Overload for follow sets
 def follow_set(non_terminal: str):
     return follow_set_full(non_terminal, set())
+
+# Dummy method for predict sets
+def predict_set(rule: tuple[str, list[str]]):
+    return set("a","b","c")
+
+# Build LL(1) parse table
+def build_parse_table():
+    terminal_set = set()
+    for symbol in SYMBOL_SET:
+        if symbol not in NON_TERMINAL_SET:
+            terminal_set.add(symbol)
+    for non_term in NON_TERMINAL_SET:
+        LL1_PARSE_TABLE[non_term] = {symbol:None for symbol in terminal_set}
+        for r_idx, production in enumerate(GRAMMAR_DICT[non_term]):
+            rule = (non_term,production)
+            for terminal in predict_set(rule):
+                LL1_PARSE_TABLE[non_term][terminal] = (non_term,r_idx)
 
 def parse_input(input_file_name):
     global GRAMMAR_DICT, NON_TERMINAL_SET, SYMBOL_SET, START_SYMBOL
