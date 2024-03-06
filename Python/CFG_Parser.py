@@ -72,18 +72,69 @@ def follow_set_full(non_terminal: str, T:set):
 def follow_set(non_terminal: str):
     return follow_set_full(non_terminal, set())
 
+# factors out common prefixes, added terminals are also factored
+def factor_rules():
+    # helper method, does longest common prefix for a list of rules
+    def longestCommonPrefix(rules: list[list[str]]):
+        prefix = [] # storage for prefix
+        for i in range(min(rules,len)): # cheat to save time
+            nextSym = rules[0][i] # next sym that could be added
+            for r in range(0,len(rules)):
+                if nextSym != rules[r][i]:
+                    return prefix # return on first failed match
+            prefix.append(nextSym)
+        return prefix
+    
+    # this is this functions replacement for the NON_TERMINAL_SET
+    non_term_list = list(NON_TERMINAL_SET)
+    # helper method, adds new non-terminals to the grammer
+    def add_non_terminal():
+        new_non_term = "A"
+        while new_non_term in SYMBOL_SET:
+            new_non_term+="A" #easiest way of doing this
+        # add new symbol to everthing that needs it
+        SYMBOL_SET.add(new_non_term)
+        NON_TERMINAL_SET.add(new_non_term)
+        GRAMMAR_DICT[new_non_term] = []
+        non_term_list.append(new_non_term)
+        return new_non_term
+    
+    # (might need to swap this with a while loop)
+    # reason for non_term_list is so that when new non-terms are added,
+    # they get pushed to the end and get cleaned later
+    for non_term in non_term_list:
+        comm_prefix = longestCommonPrefix(GRAMMAR_DICT[non_term])
+        while len(comm_prefix):
+            nt_V = add_non_terminal()
+            for production in GRAMMAR_DICT[non_term]:
+                # split production into its prefix and beta
+                beta = production[len(comm_prefix):]
+                # lambda split should probably refactor
+                if len(beta): 
+                    GRAMMAR_DICT[nt_V].append(beta)
+                else:
+                    GRAMMAR_DICT[nt_V].append("lambda")
+            # reset old rule
+            comm_prefix.append(nt_V)
+            GRAMMAR_DICT[non_term] = [comm_prefix]
+            comm_prefix = longestCommonPrefix(GRAMMAR_DICT[non_term])
+
 # Dummy method for predict sets
 def predict_set(rule: tuple[str, list[str]]):
     return set("a","b","c")
 
 # Build LL(1) parse table
 def build_parse_table():
+    # get set of terminal symbols
     terminal_set = set()
     for symbol in SYMBOL_SET:
         if symbol not in NON_TERMINAL_SET:
             terminal_set.add(symbol)
+    
     for non_term in NON_TERMINAL_SET:
+        # initilize each element of "row" to None 
         LL1_PARSE_TABLE[non_term] = {symbol:None for symbol in terminal_set}
+        # for each rule add the terminals in its predict set to the "row"
         for r_idx, production in enumerate(GRAMMAR_DICT[non_term]):
             rule = (non_term,production)
             for terminal in predict_set(rule):
