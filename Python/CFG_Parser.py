@@ -1,11 +1,12 @@
 import sys
+from typing import Dict, List, Set, Tuple
 
-GRAMMAR_DICT: dict[str, list[list[str]]] = {}
-NON_TERMINAL_SET: set[str] = set()
-SYMBOL_SET: set[str] = set()
+GRAMMAR_DICT: Dict[str, List[List[str]]] = {}
+NON_TERMINAL_SET: Set[str] = set()
+SYMBOL_SET: Set[str] = set()
 START_SYMBOL: str = ''
 
-LL1_PARSE_TABLE: dict[str, dict[str, tuple[str,int]]] = {}
+LL1_PARSE_TABLE: Dict[str, Dict[str, Tuple[str,int]]] = {}
 
 # Method for derives to lambda
 def derives_to_lambda(non_terminal: str, T: list=[]):
@@ -22,7 +23,7 @@ def derives_to_lambda(non_terminal: str, T: list=[]):
     return False
 
 # Method for first set
-def first_set_full(check_list: list[str], T: set):
+def first_set_full(check_list: List[str], T: set):
     front,rest = check_list[0],check_list[1:]
     if front in SYMBOL_SET and front not in NON_TERMINAL_SET:
         return set([front]), T
@@ -40,7 +41,7 @@ def first_set_full(check_list: list[str], T: set):
     return first,T
 
 # Overload for first sets 
-def first_set(check_list: list[str]):
+def first_set(check_list: List[str]):
     return first_set_full(check_list,set())
 
 # Method for follow sets
@@ -75,7 +76,7 @@ def follow_set(non_terminal: str):
 # factors out common prefixes, added terminals are also factored
 def factor_rules():
     # helper method, does longest common prefix for a list of rules
-    def longestCommonPrefix(rules: list[list[str]]):
+    def longestCommonPrefix(rules: List[List[str]]):
         prefix = [] # storage for prefix
         for i in range(min(rules,len)): # cheat to save time
             nextSym = rules[0][i] # next sym that could be added
@@ -120,8 +121,20 @@ def factor_rules():
             comm_prefix = longestCommonPrefix(GRAMMAR_DICT[non_term])
 
 # Dummy method for predict sets
-def predict_set(rule: tuple[str, list[str]]):
-    return set("a","b","c")
+def predict_set(rule: Tuple[str, List[str]]):
+    rule_LHS: str = rule[0]
+    rule_RHS: List[str] = rule[1]
+
+    RHS_derives_to_lambda = True
+    for symbol in rule_RHS: # Check each symbol in the RHS to see if it derives to lambda. If any of them don't, then the RHS doesn't fully derive to lambda
+        if (not derives_to_lambda(symbol, [])):
+            RHS_derives_to_lambda = False
+            break
+
+    if RHS_derives_to_lambda:
+        return follow_set(rule_LHS)
+    else:
+        return first_set(rule_RHS)
 
 # Build LL(1) parse table
 def build_parse_table():
@@ -246,6 +259,7 @@ def main():
     # Print first sets 
     print_first_sets()
 
+    # Print follow sets
     print_follow_sets()
 
 
