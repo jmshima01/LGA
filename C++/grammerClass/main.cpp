@@ -4,15 +4,11 @@
 #include <fstream>
 #include <string>
 #include "grammer.hpp"
+#include "print_func.h"
 
 using namespace std;
 
-void print_set(set<string> list) {
-    for (auto a:list) {
-        cout << a << " ";
-    }
-    cout << endl;
-}
+
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -23,8 +19,11 @@ int main(int argc, char *argv[]) {
     gram.read_file(argv[1]);
     gram.print_cfg();
 
-    print_set(gram.firstSet(vector<string>{"T"}, new set<string>()));
-    print_set(gram.followSet("Var", new set<string>()));
+    print_set(gram.firstSet(vector<string>{"T"}));
+    print_set(gram.followSet("Var"));
+
+    print2d_vec(gram.derive_LL1());
+    print2d_vec(gram.parse_tree(argv[2]));
 
     return 0;
 }

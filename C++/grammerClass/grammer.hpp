@@ -7,32 +7,50 @@
 #include <fstream>
 #include <string>
 #include <map>
+#include <queue>
+#include <stack>
 
 using namespace std;
+
+struct rule {
+    string nonT;
+    vector<string> result;
+};
+
+struct parse_node {
+    bool terminal = false;
+    string node;
+    vector<parse_node*> children;
+
+};
 
 class grammer {
     public:
         void read_file(string file_name);
         void print_cfg();
-        set<string> followSet(string A, set<string>* T);
+        set<string> followSet(string A);
         bool derivesToLambda(string nonTerminal); 
-        set<string> firstSet(vector<string> nonTerminal, set<string>* T);
+        set<string> firstSet(vector<string> nonTerminal);
+        set<string> predictSet(rule prodRule);
+        vector<vector<string>> derive_LL1();
+        vector<vector<string>> parse_tree(string file_name);
     private:
         typedef std::vector<std::string> symbolList;
-        struct rule {
-            string nonT;
-            vector<string> result;
-        };
         vector<rule> rules; // The rules in order
         set<string> notTs; // Contains all the non terminals
         set<string> symbols; // Contains all the terminals and non terminals
         string start; // The starting terminal
         map<string, bool> lambdaLookup;
+        map<string, int> ter_dict;
+        map<string, int> non_ter_dict;
+        vector<vector<string>> LL;
         void derivesToLambda(string nonTerminal, set<int>* T);
         const std::string lambda = "lambda";
         vector<string> after_vec(size_t idx, vector<string> vec);
         set<string> union_set(set<string> first, set<string> second);
         bool check_lambda(vector<string> vec);
+        set<string> firstSetH(vector<string> nonTerminal, set<string>* T);
+        set<string> followSetH(string A, set<string>* T);
 };
 
 void grammer::read_file(string file_name) {
@@ -70,6 +88,13 @@ void grammer::read_file(string file_name) {
             symbols.insert(arrow);
         }
         last = arrow;
+    }
+    int count = 0;
+    for (auto a:symbols) {
+        if (notTs.count(a) == 0) {
+            ter_dict.insert({a, count});
+            count++;
+        }
     }
     file_in.close();
 }
@@ -113,7 +138,11 @@ void grammer::print_cfg() {
     cout << "Grammar Start Symbol or Goal: " << start << endl;
 }
 
-set<string> grammer::firstSet(vector<string> nonTerminal, set<string>* T) {
+set<string> grammer::firstSet(vector<string> nonTerminal) {
+    return firstSetH(nonTerminal, new set<string>());
+}
+
+set<string> grammer::firstSetH(vector<string> nonTerminal, set<string>* T) {
     set<string> F;
     if (notTs.count(nonTerminal[0]) == 0) {
         F.insert(nonTerminal[0]);
@@ -123,19 +152,23 @@ set<string> grammer::firstSet(vector<string> nonTerminal, set<string>* T) {
         T->insert(nonTerminal[0]);
         for (auto p:rules) {
             if (nonTerminal[0] == p.nonT) {
-                auto G = firstSet(p.result, T);
+                auto G = firstSetH(p.result, T);
                 F = union_set(F, G);
             }
         }
     }
     if (derivesToLambda(nonTerminal[0]) && nonTerminal.size() > 1) {
-        auto G = firstSet(after_vec(1, nonTerminal), T);
+        auto G = firstSetH(after_vec(1, nonTerminal), T);
         F = union_set(F, G);
     }
     return F;
 }
 
-set<string> grammer::followSet(string A, set<string>* T) {
+set<string> grammer::followSet(string A) {
+    return followSetH(A, new set<string>());
+}
+
+set<string> grammer::followSetH(string A, set<string>* T) {
     if (T->count(A) != 0) {
         return set<string>{};
     }
@@ -145,11 +178,11 @@ set<string> grammer::followSet(string A, set<string>* T) {
         for (size_t i = 0; i < p.result.size(); i++) {
             if (A == p.result[i]) {
                 if (i != p.result.size() - 1) {
-                    auto G = firstSet(after_vec(i + 1, p.result), new set<string>());
+                    auto G = firstSetH(after_vec(i + 1, p.result), new set<string>());
                     F = union_set(F, G);
                 }
                 if (i == p.result.size() - 1 || check_lambda(after_vec(i, p.result))) {
-                    auto G = followSet(p.result[i], T);
+                    auto G = followSetH(p.result[i], T);
                     F = union_set(F, G);
                 }
             }
@@ -167,7 +200,7 @@ bool grammer::derivesToLambda(string nonTerminal) {
 
 //helper, does recursion
 void grammer::derivesToLambda(string nonTerminal, set<int>* T) {
-    for(int p = 0; p < rules.size(); p++) {// p represents the index of a rule
+    for(size_t p = 0; p < rules.size(); p++) {// p represents the index of a rule
         rule r = rules[p];
         if(r.nonT != nonTerminal) { //if nonterminals link to rule indexes, change bounds of p, remove condition
             continue;
@@ -243,4 +276,87 @@ bool grammer::check_lambda(vector<string> vec) {
     }
     return valid;
 }
+
+set<string> grammer::predictSet(rule prodRule) {
+    set<string> F;
+    F = firstSet(prodRule.result);
+    if (derivesToLambda(prodRule.nonT)) {
+        F = union_set(F, followSet(prodRule.nonT));
+    }
+    return F;
+}
+
+vector<vector<string>> grammer::derive_LL1() {
+    int count = 0;
+    for (auto a:notTs) {
+        LL.push_back({a});
+        non_ter_dict.insert({a,count});
+        for (auto b:symbols) {
+            if (notTs.count(b) == 0) {
+                LL[count].push_back("0");
+            }
+        }
+        for (size_t i = 0; i < rules.size(); i++) {
+            if (rules[i].nonT == a) {
+                set<string> S = predictSet(rules[i]);
+                for (auto b:S) {
+                    LL[count][ter_dict[b]] = to_string(i+1);
+                }
+            }
+        }
+        count++;
+    }
+    return LL;
+}
+
+vector<vector<string>> grammer::parse_tree(string file_name) {
+    ifstream file_in(file_name);
+    queue<string> Q;
+    string next;
+    while (file_in >> next) {
+        Q.push(next);
+    }
+    stack<string> S;
+    S.push(start);
+    vector<vector<string>> tree;
+    // cout << "1" << endl;
+    while (!S.empty() && !Q.empty()) {
+        string node = S.top();
+        S.pop();
+        tree.push_back({node});
+        if (node == "lambda") {
+            
+            tree.back().push_back(node);
+            continue;
+        } else if (notTs.count(node) == 0) {
+            if (node == Q.front()) {
+                Q.pop();
+                // tree.back().push_back(node);
+                continue;
+            } else {
+                cout << "Invalid grammer" << endl;
+                return tree;
+            }
+        }
+        next = Q.front();
+        
+        int next_idx = stoi(LL[non_ter_dict[node]][ter_dict[next]]) - 1;
+        cout << next_idx << " " << node << endl;
+        rule next_rule = rules[next_idx];
+        for (size_t i = 0; i < next_rule.result.size(); i++) {
+            // cout << next_rule.result[i] << " " << i << endl;
+            tree.back().push_back(next_rule.result[i]);
+        }
+        for (int i = (int)next_rule.result.size()-1; i >= 0; i--) {
+            // cout << next_rule.result[i] << " " << i << endl;
+            S.push(next_rule.result[i]);
+            
+        }
+    }
+    if (!Q.empty() || !S.empty()) {
+        cout << "Invalid grammer" << endl;
+    }
+    return tree;
+}
+
 #endif

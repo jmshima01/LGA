@@ -2,7 +2,7 @@
 # the below example
 
 TARGET = GRAMMER
-SRC_FILES = main.cpp grammer.hpp
+SRC_FILES = main.cpp grammer.hpp print_func.cpp
 
 # DO NOT EDIT BELOW HERE
 CXX = g++
@@ -28,5 +28,6 @@ clean:
 	$(DEL) $(TARGET) $(OBJECTS)
 
 # DEPENDENCIES
-main.o: main.cpp grammer.hpp
+main.o: main.cpp grammer.hpp print_func.h
 grammer.o: grammer.hpp
+print_func.o: print_func.cpp print_func.h
