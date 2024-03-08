@@ -1,6 +1,6 @@
 .PHONY: all clean run
 
-BIN_NAME=LGA
+BIN_NAME=GRAMMAR
 
 build:
 	@go build -o $(BIN_NAME) main.go
