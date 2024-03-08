@@ -1,5 +1,6 @@
 import sys
 from typing import Dict, List, Set, Tuple
+from collections import deque
 
 GRAMMAR_DICT: Dict[str, List[List[str]]] = {}
 NON_TERMINAL_SET: Set[str] = set()
@@ -171,8 +172,43 @@ def build_parse_table():
 
 # Build the parse tree from the LL(1) parse table
 def build_parse_tree(stream_input_file_name):
+    # Put the stream from the file into a queue
+    parse_queue = deque()
+    with open(stream_input_file_name) as token_stream:
+        for line in token_stream:
+            parse_queue.append(line)
+
+    # End of production marker
+    end_of_production: str = "eopm"
     
-    pass                
+    # Parse tree will be a dict (node_id, node_value) : (parent_id, parent_value)
+    parse_tree: Dict[Tuple[int, str], Tuple[int, str]] = {(0, 'root') : (-1, 'none')}
+    parent_node: Tuple[int, str] = (0, 'root')
+    node_count: int = 1
+
+    parse_stack = deque()
+    parse_stack.append(START_SYMBOL)
+    while (len(parse_stack) != 0):
+        stack_top = parse_stack.pop()
+
+        if (stack_top != end_of_production): # If the stack top is a terminal or non-terminal
+            # Need to add the popped node to the tree
+            current_node = (node_count, stack_top)
+            parse_tree[current_node] = parent_node
+            parent_node = current_node # Replace parent node with the new child
+            parse_tree[current_node] = () # Create an entry in the dict for the child
+            node_count += 1 # Update node count
+
+            # Do an action based on what the top of the stack was
+            if (stack_top in NON_TERMINAL_SET): # Non-terminal
+                rule_num = LL1_PARSE_TABLE[stack_top][parse_queue[0]][1]
+                # How do I use rule_num to fetch a rule?
+            
+            else: # Terminal
+                pass   
+        
+        else: # End-of-production marker
+            parent_node = parse_tree[parent_node] # Move up the tree one step
 
 def parse_grammar_input(cfg_input_file_name):
     global GRAMMAR_DICT, NON_TERMINAL_SET, SYMBOL_SET, START_SYMBOL
