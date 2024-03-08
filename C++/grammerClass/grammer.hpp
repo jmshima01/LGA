@@ -323,7 +323,7 @@ vector<vector<string>> grammer::parse_tree(string file_name) {
     while (!S.empty() && !Q.empty()) {
         string node = S.top();
         S.pop();
-        tree.push_back({node});
+        
         if (node == "lambda") {
             
             tree.back().push_back(node);
@@ -338,6 +338,7 @@ vector<vector<string>> grammer::parse_tree(string file_name) {
                 return tree;
             }
         }
+        tree.push_back({node});
         next = Q.front();
         
         int next_idx = stoi(LL[non_ter_dict[node]][ter_dict[next]]) - 1;
