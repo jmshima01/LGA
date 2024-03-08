@@ -7,6 +7,11 @@ import (
 	"unicode"
 	
 )
+type production_rule struct{
+	LHS string;
+	RHS []string;
+};
+
 
 // ============== Helpers =============
 
@@ -71,21 +76,21 @@ func main() {
 	P := make([]production_rule,0)
 	curr_rhs := ""
 	
-	TERMINALS := map[string]bool{} // set in golang
-	NON_TERMINALS := map[string]bool{}
-	GRAMMAR_SYMBOLS := map[string]bool{}
+	terminals := map[string]bool{} // set in golang
+	nonTerminals := map[string]bool{}
+	symbols := map[string]bool{}
 
 	// get terminals and non-terminals
 	for _,v := range lines{
 		line := strings.Split(v," ")
 		for _,t := range line{
 			if isNonTerminal(t) && t != "|" && t!= "->"{
-				NON_TERMINALS[t] = true
+				nonTerminals[t] = true
 			} else if !isNonTerminal(t) && t != "|" && t!= "->" && t != "lambda" && t!="$"{
-				TERMINALS[t] = true
+				terminals[t] = true
 			} 
 			if !isNonTerminal(t) && t != "|" && t!= "->"{
-				GRAMMAR_SYMBOLS[t] = true
+				symbols[t] = true
 			}
 
 		}	
@@ -111,7 +116,7 @@ func main() {
 		}
 	}
 	
-	cfg := CFG{sigma:TERMINALS, S:findStartState(P), P:P, N:NON_TERMINALS, derivestoLambda: nil, symbols:GRAMMAR_SYMBOLS, nullable:nil}
+	cfg := CFG{sigma:terminals, S:findStartState(P), P:P, N:nonTerminals, derivestoLambda: nil, symbols:symbols, nullable:nil}
 	cfg.nullable = make(map[string]bool)
 
 	for _,p := range P{
@@ -124,7 +129,7 @@ func main() {
 		}
 	}
 	
-	cfg.derivestoLambda = cfg.genLambda()
+	cfg.derivestoLambda = cfg.makeLambda()
 
 	cfg.printCFG()
 	// fmt.Println("Rule",derivesToLambda("Rule",P))

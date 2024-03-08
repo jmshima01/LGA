@@ -3,7 +3,7 @@
 BIN_NAME=GRAMMAR
 
 build:
-	@go build -o $(BIN_NAME) main.go
+	@go build -o $(BIN_NAME) main.go cfg.go
 	@chmod +x $(BIN_NAME)
 
 run: build
