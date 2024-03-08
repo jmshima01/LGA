@@ -120,21 +120,37 @@ def factor_rules():
             GRAMMAR_DICT[non_term] = [comm_prefix]
             comm_prefix = longestCommonPrefix(GRAMMAR_DICT[non_term])
 
-# Dummy method for predict sets
-def predict_set(rule: Tuple[str, List[str]]):
-    rule_LHS: str = rule[0]
-    rule_RHS: List[str] = rule[1]
+# Predict sets
+def predict_set(rule: Tuple[str, List[str]]) -> Set:
+    rule_lhs: str = rule[0]
+    rule_rhs: List[str] = rule[1]
 
-    RHS_derives_to_lambda = True
-    for symbol in rule_RHS: # Check each symbol in the RHS to see if it derives to lambda. If any of them don't, then the RHS doesn't fully derive to lambda
+    rhs_derives_to_lambda = True
+    for symbol in rule_rhs: # Check each symbol in the RHS to see if it derives to lambda. If any of them don't, then the RHS doesn't fully derive to lambda
         if (not derives_to_lambda(symbol, [])):
-            RHS_derives_to_lambda = False
+            rhs_derives_to_lambda = False
             break
 
-    if RHS_derives_to_lambda:
-        return follow_set(rule_LHS)
+    if rhs_derives_to_lambda:
+        return follow_set(rule_lhs)
     else:
-        return first_set(rule_RHS)
+        return first_set(rule_rhs)
+    
+# Function to test for pairwise disjoint sets within grammar non-terminals
+def predict_set_conflicts(non_terminal):
+    discovered_symbols: Set[str] = set()
+    conflicting_symbols: Set[str] = set()
+
+    # For each rhs of a non-terminal, check its predict set. If that predict set has symbols that have already been discovered by this operation, there will be conflicts in the LL(1) table for those symbols
+    for rule_rhs in GRAMMAR_DICT[non_terminal]:
+        cur_symbols = predict_set((non_terminal, rule_rhs)) 
+        for symbol in cur_symbols:
+            if symbol not in discovered_symbols:
+                discovered_symbols.add(symbol)
+            else:
+                conflicting_symbols.add(symbol)
+
+    return conflicting_symbols
 
 # Build LL(1) parse table
 def build_parse_table():
@@ -153,11 +169,16 @@ def build_parse_table():
             for terminal in predict_set(rule):
                 LL1_PARSE_TABLE[non_term][terminal] = (non_term,r_idx)
 
-def parse_input(input_file_name):
+# Build the parse tree from the LL(1) parse table
+def build_parse_tree(stream_input_file_name):
+    
+    pass                
+
+def parse_grammar_input(cfg_input_file_name):
     global GRAMMAR_DICT, NON_TERMINAL_SET, SYMBOL_SET, START_SYMBOL
 
     try:
-        with open(input_file_name, '+r') as input_file:
+        with open(cfg_input_file_name, '+r') as input_file:
             active_non_terminal = ''
             alternators_met_for_active = 0 # This is used for separating the rules for the respective 
             for line in input_file:
@@ -239,16 +260,22 @@ def print_follow_sets():
         print(f'Follow Set of {non_terminal}: {follow_set(non_terminal)}')
     print()
 
+def print_predict_sets():
+    for non_terminal in NON_TERMINAL_SET:
+        print(f'Predict Set of {non_terminal}: {predict_set(GRAMMAR_DICT[non_terminal])}')
+        print(f'Conflicting symbols of {non_terminal}: {predict_set_conflicts(non_terminal)}')
+    print()
+
 def main():
     # Handle command line arguments
-    if len(sys.argv) != 2:
-        print(f'Correct usage: {__file__} <input_file.cfg>')
+    if len(sys.argv) not in (2, 3) :
+        print(f'Correct usage: {__file__} <input_file.cfg> [<token_stream.in>]')
         exit(-1)
 
-    input_file_name = sys.argv[1]
+    cfg_input_file_name = sys.argv[1]
 
     # Parse the input file into the global variables
-    parse_input(input_file_name)
+    parse_grammar_input(cfg_input_file_name)
 
     # Print out the required stuff
     print_grammar_full()
@@ -261,6 +288,14 @@ def main():
 
     # Print follow sets
     print_follow_sets()
+
+    # Print predicts sets and conflicts
+    print_predict_sets()
+
+    # If a token_stream file was provided, build a parse tree and print it
+    if len(sys.argv) == 3:
+        stream_input_file_name = sys.argv[2]
+        build_parse_tree(stream_input_file_name)
 
 
 if __name__ == '__main__':
