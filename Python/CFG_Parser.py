@@ -8,6 +8,8 @@ SYMBOL_SET: Set[str] = set()
 START_SYMBOL: str = ''
 
 LL1_PARSE_TABLE: Dict[str, Dict[str, Tuple[str,int]]] = {}
+RULES_DICT: Dict[int, Tuple[str, List[str]]] = {}
+PARSE_TREE: Dict[Tuple[int, str], Tuple[int, str]] = {}
 
 # Method for derives to lambda
 def derives_to_lambda(non_terminal: str, T: list=[]):
@@ -122,36 +124,42 @@ def factor_rules():
             comm_prefix = longestCommonPrefix(GRAMMAR_DICT[non_term])
 
 # Predict sets
-def predict_set(rule: Tuple[str, List[str]]) -> Set:
+def predict_set(rule: Tuple[str, List[str]]):
     rule_lhs: str = rule[0]
     rule_rhs: List[str] = rule[1]
 
     rhs_derives_to_lambda = True
-    for symbol in rule_rhs: # Check each symbol in the RHS to see if it derives to lambda. If any of them don't, then the RHS doesn't fully derive to lambda
-        if (not derives_to_lambda(symbol, [])):
+    for symbol in rule_rhs: # Check each non_terminal in the RHS to see if it derives to lambda. If any of them don't, then the RHS doesn't fully derive to lambda
+        if (symbol in NON_TERMINAL_SET):
+            if (not derives_to_lambda(symbol, [])): # Non_Terminal
+                rhs_derives_to_lambda = False
+                break
+        elif (symbol != 'lambda'): # Terminal that's not lambda
             rhs_derives_to_lambda = False
             break
+        
 
     if rhs_derives_to_lambda:
-        return follow_set(rule_lhs)
+        return follow_set(rule_lhs)[0]
     else:
-        return first_set(rule_rhs)
+        return first_set(rule_rhs)[0]
     
 # Function to test for pairwise disjoint sets within grammar non-terminals
-def predict_set_conflicts(non_terminal):
+def predict_set_conflicts(rule: Tuple[str, List[str]]):
     discovered_symbols: Set[str] = set()
     conflicting_symbols: Set[str] = set()
 
-    # For each rhs of a non-terminal, check its predict set. If that predict set has symbols that have already been discovered by this operation, there will be conflicts in the LL(1) table for those symbols
-    for rule_rhs in GRAMMAR_DICT[non_terminal]:
-        cur_symbols = predict_set((non_terminal, rule_rhs)) 
-        for symbol in cur_symbols:
-            if symbol not in discovered_symbols:
-                discovered_symbols.add(symbol)
-            else:
-                conflicting_symbols.add(symbol)
+    # Find the predict set of a rule. If that predict set has symbols that have already been discovered by this operation, there will be conflicts in the LL(1) table for those symbols
+    for symbol in predict_set(rule):
+        if symbol not in discovered_symbols:
+            discovered_symbols.add(symbol)
+        else:
+            conflicting_symbols.add(symbol)
 
-    return conflicting_symbols
+    if conflicting_symbols == set():
+        return {}
+    else:
+        return conflicting_symbols
 
 # Build LL(1) parse table
 def build_parse_table():
@@ -167,22 +175,25 @@ def build_parse_table():
         # for each rule add the terminals in its predict set to the "row"
         for r_idx, production in enumerate(GRAMMAR_DICT[non_term]):
             rule = (non_term,production)
+            RULES_DICT[r_idx] = rule
             for terminal in predict_set(rule):
                 LL1_PARSE_TABLE[non_term][terminal] = (non_term,r_idx)
 
 # Build the parse tree from the LL(1) parse table
 def build_parse_tree(stream_input_file_name):
+    global PARSE_TREE
+
     # Put the stream from the file into a queue
     parse_queue = deque()
     with open(stream_input_file_name) as token_stream:
         for line in token_stream:
-            parse_queue.append(line)
+            parse_queue.append(line.strip())
 
     # End of production marker
     end_of_production: str = "eopm"
     
     # Parse tree will be a dict (node_id, node_value) : (parent_id, parent_value)
-    parse_tree: Dict[Tuple[int, str], Tuple[int, str]] = {(0, 'root') : (-1, 'none')}
+    PARSE_TREE = {}
     parent_node: Tuple[int, str] = (0, 'root')
     node_count: int = 1
 
@@ -194,21 +205,33 @@ def build_parse_tree(stream_input_file_name):
         if (stack_top != end_of_production): # If the stack top is a terminal or non-terminal
             # Need to add the popped node to the tree
             current_node = (node_count, stack_top)
-            parse_tree[current_node] = parent_node
-            parent_node = current_node # Replace parent node with the new child
-            parse_tree[current_node] = () # Create an entry in the dict for the child
+            PARSE_TREE[current_node] = parent_node
             node_count += 1 # Update node count
 
             # Do an action based on what the top of the stack was
             if (stack_top in NON_TERMINAL_SET): # Non-terminal
+                # Move down the tree
+                parent_node = current_node
+                PARSE_TREE[current_node] = () 
+
+                # Fetch the rule to put on the stack
                 rule_num = LL1_PARSE_TABLE[stack_top][parse_queue[0]][1]
-                # How do I use rule_num to fetch a rule?
+                # Fetch the rule rhs
+                rule_rhs = RULES_DICT[rule_num][1]
+                # Push to stack in reverse order
+                parse_stack.append(end_of_production)
+                for rule in rule_rhs[::-1]:
+                    parse_stack.append(rule)
             
-            else: # Terminal
-                pass   
+            else: # Terminal or End of Stream
+                if (stack_top == parse_queue[0]): # If the top of stack and queue match, pop the parse queue
+                    parse_queue.popleft()
+                else: # If they don't match, there's a parse error (Syntax?)
+                    print('Parsing error. Cannot continue building parse tree.')
+                    break 
         
         else: # End-of-production marker
-            parent_node = parse_tree[parent_node] # Move up the tree one step
+            parent_node = PARSE_TREE[parent_node] # Move up the tree one step
 
 def parse_grammar_input(cfg_input_file_name):
     global GRAMMAR_DICT, NON_TERMINAL_SET, SYMBOL_SET, START_SYMBOL
@@ -298,8 +321,9 @@ def print_follow_sets():
 
 def print_predict_sets():
     for non_terminal in NON_TERMINAL_SET:
-        print(f'Predict Set of {non_terminal}: {predict_set(GRAMMAR_DICT[non_terminal])}')
-        print(f'Conflicting symbols of {non_terminal}: {predict_set_conflicts(non_terminal)}')
+        for rule_rhs in GRAMMAR_DICT[non_terminal]:
+            print(f'Predict Set of {non_terminal} -> {" ".join(rule_rhs)}: {predict_set((non_terminal, rule_rhs))}')
+            print(f'Conflicting symbols of {non_terminal} -> {" ".join(rule_rhs)}: {predict_set_conflicts((non_terminal, rule_rhs))}')
     print()
 
 def main():
@@ -330,8 +354,10 @@ def main():
 
     # If a token_stream file was provided, build a parse tree and print it
     if len(sys.argv) == 3:
+        build_parse_table()
         stream_input_file_name = sys.argv[2]
         build_parse_tree(stream_input_file_name)
+        print(PARSE_TREE)
 
 
 if __name__ == '__main__':
