@@ -9,7 +9,7 @@ START_SYMBOL: str = ''
 
 LL1_PARSE_TABLE: Dict[str, Dict[str, Tuple[str,int]]] = {}
 RULES_DICT: Dict[int, Tuple[str, List[str]]] = {}
-PARSE_TREE: Dict[Tuple[int, str], Tuple[int, str]] = {}
+PARSE_TREE: Dict[Tuple[int, str], List[Tuple[int, str]]] = {}
 
 # Method for derives to lambda
 def derives_to_lambda(non_terminal: str, T: list=[]):
@@ -179,6 +179,23 @@ def build_parse_table():
             for terminal in predict_set(rule):
                 LL1_PARSE_TABLE[non_term][terminal] = (non_term,r_idx)
 
+def perform_sdt_procedure(working_node: Tuple[int, str], procedure_name: str):
+    match procedure_name:
+        case "flip_flop": # Can only flip flop if there are 2 or more children
+            if len(PARSE_TREE[working_node]) < 2:
+                return
+            else:
+                left_child = PARSE_TREE[working_node][0]
+                right_child = PARSE_TREE[working_node][-1]
+                PARSE_TREE[working_node][0] = right_child
+                PARSE_TREE[working_node][-1] = left_child
+        case "rotate_children":
+            left_child = PARSE_TREE[working_node].pop(0)
+            PARSE_TREE[working_node].append(left_child)
+        case "flatten_right": # Flatten a right recursive rule (like in the LGA example) (theoretically, this would only be used from the bottom up, never in the middle of a branch)
+            # Replace the right-recursive non-terminal with the child of that right-resursive non-terminal
+            PARSE_TREE[working_node][-1] = PARSE_TREE[PARSE_TREE[working_node][-1]][0]
+
 # Build the parse tree from the LL(1) parse table
 def build_parse_tree(stream_input_file_name):
     global PARSE_TREE
@@ -192,7 +209,7 @@ def build_parse_tree(stream_input_file_name):
     # End of production marker
     end_of_production: str = "eopm"
     
-    # Parse tree will be a dict (node_id, node_value) : (parent_id, parent_value)
+    # Parse tree will be a dict  (parent_id, parent_value) : [(child_node_id, child_node_value), ...]
     PARSE_TREE = {}
     parent_node: Tuple[int, str] = (0, 'root')
     node_count: int = 1
@@ -205,14 +222,16 @@ def build_parse_tree(stream_input_file_name):
         if (stack_top != end_of_production): # If the stack top is a terminal or non-terminal
             # Need to add the popped node to the tree
             current_node = (node_count, stack_top)
-            PARSE_TREE[current_node] = parent_node
+            if (parent_node not in PARSE_TREE.keys()):
+                PARSE_TREE[parent_node] = []
+            PARSE_TREE[parent_node].append(current_node)
             node_count += 1 # Update node count
 
             # Do an action based on what the top of the stack was
             if (stack_top in NON_TERMINAL_SET): # Non-terminal
                 # Move down the tree
                 parent_node = current_node
-                PARSE_TREE[current_node] = () 
+                PARSE_TREE[current_node] = []
 
                 # Fetch the rule to put on the stack
                 rule_num = LL1_PARSE_TABLE[stack_top][parse_queue[0]][1]
@@ -231,7 +250,18 @@ def build_parse_tree(stream_input_file_name):
                     break 
         
         else: # End-of-production marker
-            parent_node = PARSE_TREE[parent_node] # Move up the tree one step
+            # Move up the tree one step
+            # No real easy way of doing this with a dict tree I don't think
+            # FIXME: Optimize
+            for item in PARSE_TREE.items():
+                if parent_node in item[1]:
+                     parent_node = item[0]
+                     break
+
+            # Here is where sytax directed translation rules can occur
+            perform_sdt_procedure(parent_node, "flip_flop")
+            perform_sdt_procedure(parent_node, "rotate_children")
+            perform_sdt_procedure(parent_node, "flatten_right")
 
 def parse_grammar_input(cfg_input_file_name):
     global GRAMMAR_DICT, NON_TERMINAL_SET, SYMBOL_SET, START_SYMBOL
